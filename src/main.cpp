@@ -1,284 +1,221 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include <cstdlib>  // for rand()
-#include <ctime>    // for srand()
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
 using namespace std;
 
-// Window resize callback
-void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
+// Callback for window resize
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
     glViewport(0, 0, width, height);
 }
 
-// Shader error checking
-void checkShaderCompile(unsigned int shader)
-{
+// Shader compilation checker
+void checkShaderCompile(unsigned int shader) {
     int success;
     char infoLog[512];
     glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if(!success)
-    {
+    if(!success) {
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
         cout << "ERROR::SHADER::COMPILATION_FAILED\n" << infoLog << endl;
     }
 }
 
-// Program linking error checking
-void checkProgramLink(unsigned int program)
-{
+// Shader program linking checker
+void checkProgramLink(unsigned int program) {
     int success;
     char infoLog[512];
     glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if(!success)
-    {
+    if(!success) {
         glGetProgramInfoLog(program, 512, NULL, infoLog);
         cout << "ERROR::PROGRAM::LINKING_FAILED\n" << infoLog << endl;
     }
 }
 
-// Ball structure
-struct Ball {
-    float x, y;
-    float vx, vy;
-    float radius;
-    float r, g, b;
-};
-
-// Function to generate circle vertices
-vector<float> generateCircleVertices(float radius, int segments)
-{
+// Function to create circle vertices
+vector<float> createCircle(float radius, int segments) {
     vector<float> vertices;
-    vertices.push_back(0.0f);
-    vertices.push_back(0.0f);
-    vertices.push_back(0.0f);
-
-    for(int i = 0; i <= segments; i++)
-    {
+    vertices.push_back(0.0f); // center x
+    vertices.push_back(0.0f); // center y
+    vertices.push_back(0.0f); // center z
+    for (int i = 0; i <= segments; i++) {
         float angle = 2.0f * 3.1415926f * i / segments;
-        float vx = radius * cos(angle);
-        float vy = radius * sin(angle);
-        vertices.push_back(vx);
-        vertices.push_back(vy);
+        float x = radius * cos(angle);
+        float y = radius * sin(angle);
+        vertices.push_back(x);
+        vertices.push_back(y);
         vertices.push_back(0.0f);
     }
     return vertices;
 }
 
-int main()
-{
-    srand(time(0));
-
-    // --- GLFW init ---
-    if(!glfwInit())
-    {
-        cout << "Failed to init GLFW" << endl;
+int main() {
+    // Initialize GLFW
+    if (!glfwInit()) {
+        cout << "Failed to initialize GLFW" << endl;
         return -1;
     }
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800,600,"Multi Ball Collision",NULL,NULL);
-    if(!window)
-    {
-        cout << "Failed to create window" << endl;
+    GLFWwindow* window = glfwCreateWindow(800, 600, "Solar System", NULL, NULL);
+    if (!window) {
+        cout << "Failed to create GLFW window" << endl;
         glfwTerminate();
         return -1;
     }
+
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        cout << "Failed to init GLAD" << endl;
+    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
+        cout << "Failed to initialize GLAD" << endl;
         return -1;
     }
 
-    // --- Shaders ---
-    const char* vertexShaderSrc = R"(
+    // --- Shader sources ---
+    const char* vertexShaderSource = R"(
         #version 330 core
         layout (location = 0) in vec3 aPos;
-        uniform float offsetX;
-        uniform float offsetY;
+        uniform vec2 offset;
         void main()
         {
-            gl_Position = vec4(aPos.x + offsetX, aPos.y + offsetY, aPos.z, 1.0);
+            gl_Position = vec4(aPos.x + offset.x, aPos.y + offset.y, aPos.z, 1.0);
         }
     )";
 
-    const char* fragmentShaderSrc = R"(
+    const char* fragmentShaderSource = R"(
         #version 330 core
         out vec4 FragColor;
         uniform vec3 color;
         void main()
         {
-            FragColor = vec4(color,1.0);
+            FragColor = vec4(color, 1.0);
         }
     )";
 
-    unsigned int vs = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vs,1,&vertexShaderSrc,NULL);
-    glCompileShader(vs);
-    checkShaderCompile(vs);
+    // Compile shaders
+    unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+    glCompileShader(vertexShader);
+    checkShaderCompile(vertexShader);
 
-    unsigned int fs = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fs,1,&fragmentShaderSrc,NULL);
-    glCompileShader(fs);
-    checkShaderCompile(fs);
+    unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+    glCompileShader(fragmentShader);
+    checkShaderCompile(fragmentShader);
 
     unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram,vs);
-    glAttachShader(shaderProgram,fs);
+    glAttachShader(shaderProgram, vertexShader);
+    glAttachShader(shaderProgram, fragmentShader);
     glLinkProgram(shaderProgram);
     checkProgramLink(shaderProgram);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
 
-    // --- Circle geometry ---
-    const int segments = 50;
-    float radius = 0.05f;
-    vector<float> vertices = generateCircleVertices(radius, segments);
+    glDeleteShader(vertexShader);
+    glDeleteShader(fragmentShader);
 
-    unsigned int VAO,VBO;
-    glGenVertexArrays(1,&VAO);
-    glGenBuffers(1,&VBO);
+    // --- Create circle vertices ---
+    int circleSegments = 50;
+    vector<float> circleVertices = createCircle(1.0f, circleSegments); // base circle radius=1.0, will scale later
+
+    unsigned int VAO, VBO;
+    glGenVertexArrays(1, &VAO);
+    glGenBuffers(1, &VBO);
 
     glBindVertexArray(VAO);
-    glBindBuffer(GL_ARRAY_BUFFER,VBO);
-    glBufferData(GL_ARRAY_BUFFER,vertices.size()*sizeof(float),vertices.data(),GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0,3,GL_FLOAT,GL_FALSE,3*sizeof(float),(void*)0);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, circleVertices.size() * sizeof(float), circleVertices.data(), GL_DYNAMIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER,0);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
-    // --- Physics setup ---
-    const int ballCount = 5;
-    vector<Ball> balls(ballCount);
-    for(int i=0;i<ballCount;i++)
-    {
-        balls[i].x = ((rand()%100)/100.0f)*1.8f - 0.9f; // x in -0.9 to 0.9
-        balls[i].y = ((rand()%100)/100.0f)*0.5f + 0.5f; // y in 0.5 to 1.0
-        balls[i].vx = ((rand()%200)/100.0f - 1.0f)*0.5f; // vx -0.5 to 0.5
-        balls[i].vy = 0.0f;
-        balls[i].radius = radius;
-        balls[i].r = (rand()%100)/100.0f;
-        balls[i].g = (rand()%100)/100.0f;
-        balls[i].b = (rand()%100)/100.0f;
-    }
+    // --- Planet properties: {orbit radius, speed, size, color RGB} ---
+    struct Planet {
+        float orbitRadius;
+        float speed;
+        float size;
+        float color[3];
+        float angle;
+    };
 
-    float gravity = -1.5f;
-    float restitution = 0.8f;
+    vector<Planet> planets = {
+        {0.25f, 1.0f, 0.05f, {1.0f, 0.0f, 0.0f}, 0.0f}, // Mercury
+        {0.4f, 0.6f, 0.08f, {0.0f, 1.0f, 0.0f}, 0.0f},  // Venus
+        {0.55f, 0.4f, 0.09f, {0.0f, 0.0f, 1.0f}, 0.0f},  // Earth
+        {0.7f, 0.3f, 0.07f, {1.0f, 1.0f, 0.0f}, 0.0f}    // Mars
+    };
 
     float lastTime = glfwGetTime();
 
     // --- Render loop ---
-    while(!glfwWindowShouldClose(window))
-    {
+    while (!glfwWindowShouldClose(window)) {
         float currentTime = glfwGetTime();
-        float dt = currentTime - lastTime;
+        float deltaTime = currentTime - lastTime;
         lastTime = currentTime;
 
-        // Physics update
-        for(int i=0;i<ballCount;i++)
-        {
-            balls[i].vy += gravity*dt;
-            balls[i].x += balls[i].vx*dt;
-            balls[i].y += balls[i].vy*dt;
-
-            // Ground collision
-            if(balls[i].y - balls[i].radius < -1.0f)
-            {
-                balls[i].y = -1.0f + balls[i].radius;
-                balls[i].vy = -balls[i].vy*restitution;
-            }
-            // Left/Right walls
-            if(balls[i].x - balls[i].radius < -1.0f)
-            {
-                balls[i].x = -1.0f + balls[i].radius;
-                balls[i].vx = -balls[i].vx*restitution;
-            }
-            if(balls[i].x + balls[i].radius > 1.0f)
-            {
-                balls[i].x = 1.0f - balls[i].radius;
-                balls[i].vx = -balls[i].vx*restitution;
-            }
-        }
-
-        // Ball-to-ball collisions
-        for(int i=0;i<ballCount;i++)
-        {
-            for(int j=i+1;j<ballCount;j++)
-            {
-                float dx = balls[j].x - balls[i].x;
-                float dy = balls[j].y - balls[i].y;
-                float dist = sqrt(dx*dx + dy*dy);
-                float minDist = balls[i].radius + balls[j].radius;
-
-                if(dist < minDist && dist > 0.0f)
-                {
-                    // Normalize
-                    float nx = dx/dist;
-                    float ny = dy/dist;
-
-                    // Relative velocity
-                    float vx_rel = balls[j].vx - balls[i].vx;
-                    float vy_rel = balls[j].vy - balls[i].vy;
-                    float relVel = vx_rel*nx + vy_rel*ny;
-
-                    // Skip if moving apart
-                    if(relVel > 0) continue;
-
-                    // Elastic impulse
-                    float impulse = -(1+restitution)*relVel/2.0f;
-                    balls[i].vx -= impulse*nx;
-                    balls[i].vy -= impulse*ny;
-                    balls[j].vx += impulse*nx;
-                    balls[j].vy += impulse*ny;
-
-                    // Separate overlapping balls
-                    float overlap = 0.5f*(minDist - dist);
-                    balls[i].x -= overlap*nx;
-                    balls[i].y -= overlap*ny;
-                    balls[j].x += overlap*nx;
-                    balls[j].y += overlap*ny;
-                }
-            }
+        // Update planet angles
+        for (auto &p : planets) {
+            p.angle += p.speed * deltaTime;
+            if (p.angle > 2.0f * 3.1415926f) p.angle -= 2.0f * 3.1415926f;
         }
 
         // Clear screen
-        glClearColor(0.05f,0.05f,0.05f,1.0f);
+        glClearColor(0.0f, 0.0f, 0.05f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        // Draw balls
         glUseProgram(shaderProgram);
         glBindVertexArray(VAO);
 
-        for(int i=0;i<ballCount;i++)
-        {
-            int offsetXLoc = glGetUniformLocation(shaderProgram,"offsetX");
-            int offsetYLoc = glGetUniformLocation(shaderProgram,"offsetY");
-            int colorLoc = glGetUniformLocation(shaderProgram,"color");
+        int colorLoc = glGetUniformLocation(shaderProgram, "color");
+        int offsetLoc = glGetUniformLocation(shaderProgram, "offset");
 
-            glUniform1f(offsetXLoc, balls[i].x);
-            glUniform1f(offsetYLoc, balls[i].y);
-            glUniform3f(colorLoc, balls[i].r, balls[i].g, balls[i].b);
+        // --- Draw Sun ---
+        float sunScale = 0.12f;
+        vector<float> scaledSunVertices;
+        for (size_t i = 0; i < circleVertices.size(); i += 3) {
+            scaledSunVertices.push_back(circleVertices[i] * sunScale);
+            scaledSunVertices.push_back(circleVertices[i+1] * sunScale);
+            scaledSunVertices.push_back(circleVertices[i+2]);
+        }
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferSubData(GL_ARRAY_BUFFER, 0, scaledSunVertices.size() * sizeof(float), scaledSunVertices.data());
+        glUniform3f(colorLoc, 1.0f, 0.5f, 0.0f); // orange sun
+        glUniform2f(offsetLoc, 0.0f, 0.0f);
+        glDrawArrays(GL_TRIANGLE_FAN, 0, circleSegments + 2);
 
-            glDrawArrays(GL_TRIANGLE_FAN,0,segments+2);
+        // --- Draw planets ---
+        for (auto &p : planets) {
+            float x = p.orbitRadius * cos(p.angle);
+            float y = p.orbitRadius * sin(p.angle);
+
+            // Scale planet vertices
+            vector<float> scaledVertices;
+            for (size_t i = 0; i < circleVertices.size(); i += 3) {
+                scaledVertices.push_back(circleVertices[i] * p.size);
+                scaledVertices.push_back(circleVertices[i+1] * p.size);
+                scaledVertices.push_back(circleVertices[i+2]);
+            }
+            glBindBuffer(GL_ARRAY_BUFFER, VBO);
+            glBufferSubData(GL_ARRAY_BUFFER, 0, scaledVertices.size() * sizeof(float), scaledVertices.data());
+
+            glUniform2f(offsetLoc, x, y);
+            glUniform3f(colorLoc, p.color[0], p.color[1], p.color[2]);
+            glDrawArrays(GL_TRIANGLE_FAN, 0, circleSegments + 2);
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1,&VAO);
-    glDeleteBuffers(1,&VBO);
+    // Cleanup
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
     glDeleteProgram(shaderProgram);
+
     glfwTerminate();
     return 0;
 }
